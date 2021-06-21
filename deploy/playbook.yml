@@ -1,0 +1,21 @@
+---
+
+- name: Traefik Deployment
+  hosts: all
+  tasks:
+    - git:
+        repo: https://github.com/awisky/traefik-docker.git 
+        version: "main"
+        dest: "~/branches/traefik-docker"
+        update: yes
+
+    - name: Starting Traefik Service
+      docker_compose:
+        project_src: "~/branches/traefik-docker/traefik/"
+        services:
+          - reverse-proxy
+          - whoami
+          - app1
+        restarted: true
+        state: present
+

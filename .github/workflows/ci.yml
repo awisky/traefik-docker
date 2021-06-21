@@ -1,0 +1,42 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Traefik CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create the network
+        run: docker network create traefik
+      - name: Build the stack
+        working-directory: ./traefik
+        run: docker-compose up -d
+      - name: Test
+        run: docker run --network container:traefik appropriate/curl -s --retry 10 --retry-connrefused http://localhost:8080/
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Extract branch name
+      shell: bash
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: extract_branch
+    - name: Run ansible deployment playblook 
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.DOCKER_HOST }}
+        username: ${{ secrets.DOCKER_USERNAME }}
+        key: ${{ secrets.DOCKER_SSH_PRIVATE_KEY }}
+        port: ${{ secrets.DOCKER_PORT }}
+        script: ansible-playbook ~/branches/traefik-docker/deploy/playbook.yml
+
+
