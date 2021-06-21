@@ -1,0 +1,51 @@
+version: '3'
+
+services:
+  reverse-proxy:
+    # The official v2 Traefik docker image
+    image: traefik:v2.4
+    # Enables the web UI and tells Traefik to listen to docker
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+    #  - "--entrypoints.web.address=:80"
+    ports:
+      # The HTTP port
+      - "80:80"
+      # The Web UI (enabled by --api.insecure=true) 
+      # please don't use it in production
+      - "8080:8080"
+    environment: 
+      - TRAEFIK_LOG_LEVEL=DEBUG
+      - TRAEFIK_PROVIDERS_DOCKER=true
+      - TRAEFIK_API_INSECURE=true
+      - TRAEFIK_ENTRYPOINTS_FRONT=true
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - traefik
+  whoami:
+    # A container that exposes an API to show its IP address
+    image: traefik/whoami
+    labels:
+      - "traefik.http.routers.whoami.rule=Host(`whoami.docker.localhost`)"
+    networks:
+      - traefik
+  app1:
+    image: nginx:1.17.6-alpine
+    expose:
+      - 80
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app1.entrypoints=http"
+      - "traefik.http.routers.app1.rule=PathPrefix(`/app1{regex:$$|/.*}`)"
+      - "traefik.http.routers.app1.middlewares=app1-stripprefix"
+      - "traefik.http.middlewares.app1-stripprefix.stripprefix.prefixes=/app1"
+    networks:
+      - traefik
+networks:
+  traefik:
+    external: true
