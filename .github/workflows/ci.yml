@@ -20,7 +20,7 @@ jobs:
         working-directory: ./traefik
         run: docker-compose up -d
       - name: Test
-        run: docker run --network container:traefik appropriate/curl -s --retry 10 --retry-connrefused http://localhost:8080/
+        run: docker run --network container:traefik appropriate/curl -s --retry 10 --retry-connrefused http://localhost:80/
 
   deploy:
     needs: test

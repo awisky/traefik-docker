@@ -1,52 +1,62 @@
-version: '3'
+version: "3.3"
 
 services:
-  reverse-proxy:
-    # The official v2 Traefik docker image
+  traefik:
     container_name: traefik
-    image: traefik:v2.4
-    # Enables the web UI and tells Traefik to listen to docker
+    image: "traefik:latest"
     command:
-      - "--log.level=DEBUG"
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-    #  - "--entrypoints.web.address=:80"
+      - --api.dashboard=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.docker
+      - --log.level=ERROR
+      - --certificatesresolvers.leresolver.acme.httpchallenge=true
+      - --certificatesresolvers.leresolver.acme.email=${MY_EMAIL}
+      - --certificatesresolvers.leresolver.acme.storage=./acme.json
+      - --certificatesresolvers.leresolver.acme.httpchallenge.entrypoint=web
     ports:
-      # The HTTP port
       - "80:80"
-      # The Web UI (enabled by --api.insecure=true) 
-      # please don't use it in production
-      - "8080:8080"
-    environment: 
-      - TRAEFIK_LOG_LEVEL=DEBUG
-      - TRAEFIK_PROVIDERS_DOCKER=true
-      - TRAEFIK_API_INSECURE=true
-      - TRAEFIK_ENTRYPOINTS_FRONT=true
+      - "443:443"
     volumes:
-      # So that Traefik can listen to the Docker events
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./acme.json:/acme.json"
+    labels:
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    networks:
+      - traefik
+
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:2.5.1
+    command: -H unix:///var/run/docker.sock
+    restart: always
+    volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - traefik
-  whoami:
-    # A container that exposes an API to show its IP address
-    image: traefik/whoami
+      - portainer_data:/data
     labels:
-      - "traefik.http.routers.whoami.rule=Host(`whoami.docker.localhost`)"
-    networks:
-      - traefik
-  app1:
-    image: nginx:1.17.6-alpine
-    expose:
-      - 80
-    labels:
+      # Frontend
       - "traefik.enable=true"
-      - "traefik.http.routers.app1.entrypoints=http"
-      - "traefik.http.routers.app1.rule=PathPrefix(`/app1{regex:$$|/.*}`)"
-      - "traefik.http.routers.app1.middlewares=app1-stripprefix"
-      - "traefik.http.middlewares.app1-stripprefix.stripprefix.prefixes=/app1"
+      - "traefik.http.routers.frontend.rule=Host(`portainer.${MY_DOMAIN}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.services.frontend.loadbalancer.server.port=9000"
+      - "traefik.http.routers.frontend.service=frontend"
+      - "traefik.http.routers.frontend.tls.certresolver=leresolver"
+
+      # Edge
+      - "traefik.http.routers.edge.rule=Host(`edge.${MY_DOMAIN}`)"
+      - "traefik.http.routers.edge.entrypoints=websecure"
+      - "traefik.http.services.edge.loadbalancer.server.port=8000"
+      - "traefik.http.routers.edge.service=edge"
+      - "traefik.http.routers.edge.tls.certresolver=leresolver"
     networks:
       - traefik
+
+
+volumes:
+  portainer_data:
 networks:
   traefik:
     external: true

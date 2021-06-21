@@ -13,9 +13,8 @@
       docker_compose:
         project_src: "~/branches/traefik-docker/traefik/"
         services:
-          - reverse-proxy
-          - whoami
-          - app1
+          - traefik
+          - portainer
         restarted: true
         state: present
 
