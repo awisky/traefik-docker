@@ -13,7 +13,7 @@ providers:
 certificatesResolvers:
   http:
     acme:
-      email: ${MY_EMAIL}
+      email: agustinwisky@gmail.com
       storage: acme.json
       httpChallenge:
         entryPoint: http

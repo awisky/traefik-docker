@@ -6,3 +6,4 @@ __pycache__/
 .vscode
 # compiled python files
 *.py[co]
+acme.json

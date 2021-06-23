@@ -7,6 +7,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    command:
+      --providers.docker.swarmmode
+      --log.level=DEBUG
+      --accesslog
+      --api.dashboard=true
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./acme.json:/acme.json"
